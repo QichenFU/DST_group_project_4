@@ -1,5 +1,7 @@
 # DST2_Project_Group_4 
 
+Analysis_report.pdf: the documentation of the whole analysis
+
 Hep3B2.1-7_final_pass.vcf: the vcf file of the final passed variants. 
 
 Hep3B2.1-7_hg38_multianno_All.txt: variant annotation file using all Table S6 databases. 
