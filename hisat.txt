@@ -1,0 +1,40 @@
+#!/usr/bin/perl
+
+sub NOTIFICATION {
+  $email = '';
+  open (NOTE, ">>$0.notice.log");
+  print NOTE "\nStatus is : $_[0]";
+  close NOTE;
+  system "mail -s 'VAP-05-02-21_22:43:53' $email < $0.notice.log";
+}
+
+#HiSAT trimmed
+chdir("/public/workspace/3190******bit/DST2/2");
+`mkdir -p trimmed/hisat`;
+chdir ("trimmed/hisat");
+
+`/.bio-apps/rhel7/hisat2-2.1.0/hisat2 -p 4 -x /public/workspace/3190******bit/DST2/ref_GATK/hg38 -S trimmed.hisat.sam -1 /public/workspace/3190******bit/DST2/Hep3B/trimmed_1.fq.gz -2 /public/workspace/3190******bit/DST2/Hep3B/trimmed_2.fq.gz 2> trimmed_align.txt`;
+``;
+
+#VAP trimmed
+chdir("/public/workspace/3190******bit/DST2/2");
+`mkdir -p trimmed/hisat`;
+chdir ("trimmed/hisat");
+my $locale=`pwd`; chomp $locale;
+
+`mkdir -p $locale/variants`;
+chdir("$locale/variants");
+`java -jar /public/workspace/3190******bit/DST2/1/Hep3B2-1-7_FRAS190069749-1a/hisat/variants/picard.jar QualityScoreDistribution INPUT=../trimmed.hisat.sam OUTPUT=qualityscores.txt CHART=qualityscores.chart`;
+`java -jar /public/workspace/3190******bit/DST2/1/Hep3B2-1-7_FRAS190069749-1a/hisat/variants/picard.jar SortSam INPUT=../trimmed.hisat.sam OUTPUT=aln_sorted.bam SO=coordinate`;
+`java -jar /public/workspace/3190******bit/DST2/1/Hep3B2-1-7_FRAS190069749-1a/hisat/variants/picard.jar AddOrReplaceReadGroups INPUT=aln_sorted.bam OUTPUT=aln_sorted_add.bam SO=coordinate RGID=Label RGLB=Label RGPL=illumina RGPU=Label RGSM=Label`;
+`java -jar /public/workspace/3190******bit/DST2/1/Hep3B2-1-7_FRAS190069749-1a/hisat/variants/picard.jar MarkDuplicates INPUT=aln_sorted_add.bam OUTPUT=aln_sorted_mdup.bam M=aln_sorted_mdup.metrics CREATE_INDEX=true`;
+`java -jar /public/workspace/3190******bit/DST2/1/Hep3B2-1-7_FRAS190069749-1a/hisat/variants/picard.jar ReorderSam INPUT=aln_sorted_mdup.bam OUTPUT=aln_resorted_mdup.bam SEQUENCE_DICTIONARY=/public/workspace/3190******bit/DST2/ref_GATK/hg38.dict CREATE_INDEX=TRUE`;
+my $file = `tail -n2 qualityscores.txt | head -n 1 | awk -F" " '{print \$1}'`;
+if ($file >= 59) {
+`java -jar /public/workspace/3190******bit/DST2/1/Hep3B2-1-7_FRAS190069749-1a/hisat/variants/gatk3.jar -T SplitNCigarReads --fix_misencoded_quality_scores -R /public/workspace/3190******bit/DST2/ref_GATK/hg38.fasta -I aln_resorted_mdup.bam -o aln_sorted_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 --filter_reads_with_N_cigar`;
+} else {
+`java -jar /public/workspace/3190******bit/DST2/1/Hep3B2-1-7_FRAS190069749-1a/hisat/variants/gatk3.jar -T SplitNCigarReads -R /public/workspace/3190******bit/DST2/ref_GATK/hg38.fasta -I aln_resorted_mdup.bam -o aln_sorted_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 --filter_reads_with_N_cigar`;
+}
+
+`java -jar /public/workspace/3190******bit/DST2/1/Hep3B2-1-7_FRAS190069749-1a/hisat/variants/gatk3.jar -T HaplotypeCaller -R /public/workspace/3190******bit/DST2/ref_GATK/hg38.fasta -I aln_sorted_split.bam -o trimmed_all.vcf`;
+`rm -rf trimmed_snp.vcf; java -jar /public/workspace/3190******bit/DST2/1/Hep3B2-1-7_FRAS190069749-1a/hisat/variants/gatk3.jar -T SelectVariants -selectType SNP -R /public/workspace/3190******bit/DST2/ref_GATK/hg38.fasta -selectType MNP -V trimmed_all.vcf -o trimmed_snp.vcf`;
